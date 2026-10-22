@@ -66,3 +66,11 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Local secrets. Commit the example templates only.
+secrets.toml
+**/secrets/*.json
+tc002-reader.json
+
+# Firmware images. A lasting TC002 image can contain an injected key or Wi-Fi password.
+*.img

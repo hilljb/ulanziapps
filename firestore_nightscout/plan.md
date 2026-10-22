@@ -31,7 +31,7 @@ at power-on restores the stock firmware.
 | Phase | Name | State |
 | --- | --- | --- |
 | 0 | This plan | done |
-| 1 | Secrets layout | not started |
+| 1 | Secrets layout | done |
 | 2 | Read-only identity and a Mac-side read | not started |
 | 3 | Toolchain on the Mac | not started |
 | 4 | Clock shows a fixed string | not started |
@@ -69,8 +69,8 @@ Two files, same keys:
   file and does not embed the example.
 
 Also gitignored: the service-account JSON key, and any firmware image produced after
-the key or the Wi-Fi password has been injected. Phase 1 adds those rules. The root
-`.gitignore` is the place for them, so a later app inherits the same habit.
+the key or the Wi-Fi password has been injected. Those rules live in the root
+`.gitignore`, so a later app inherits the same habit.
 
 Expected keys:
 
@@ -208,3 +208,6 @@ Recorded so a detour does not drop them. None of these start before phase 6.
 
 * 2026-10-19 — Phase 0 written. Source of the reading is xdrip2gcp document
   `current/entries`, field `sgv`, in mg/dL.
+* 2026-10-22 — Phase 1 done. `secrets.example.toml` is the committed template.
+  `secrets.toml` and `secrets/tc002-reader.json` are gitignored, as is `*.img`.
+  The local `secrets.toml` is still the empty template; phase 2 fills it in.
