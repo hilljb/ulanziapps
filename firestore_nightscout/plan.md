@@ -32,7 +32,7 @@ at power-on restores the stock firmware.
 | --- | --- | --- |
 | 0 | This plan | done |
 | 1 | Secrets layout | done |
-| 2 | Read-only identity and a Mac-side read | not started |
+| 2 | Read-only identity and a Mac-side read | done |
 | 3 | Toolchain on the Mac | not started |
 | 4 | Clock shows a fixed string | not started |
 | 5 | Clock pulls the live reading | not started |
@@ -46,8 +46,11 @@ we can come back to it, and is out of scope until then.
 * Work lives in `firestore_nightscout/`. Other TC002 apps will be siblings, later.
 * The device initiates every read. Nothing pushes a frame or a value to the clock.
 * The displayed value is `sgv` from `current/entries`, rendered as `{sgv} mg/dl`.
-* A dedicated service account may read that one document and nothing else. The
-  xdrip2gcp writer identity stays as it is.
+* A dedicated service account may read documents in the xdrip2gcp database and
+  nothing else. The xdrip2gcp writer identity stays as it is. Firestore IAM
+  conditions name a database, not a document, so the binding is the `(default)`
+  database and the only permission is `datastore.entities.get`. The reader
+  requests `current/entries` and no other path.
 * Poll about once a minute. The document moves every five minutes, and a one-minute
   poll is about 1,440 reads a day, inside the Firestore free tier of 50,000 reads a
   day. The interval belongs in the secrets file so it can change without a hunt
@@ -95,11 +98,13 @@ The JSON key path is relative to `firestore_nightscout/`. The key file is create
 phase 2 and never committed.
 
 Access is IAM on that service account, which is what a server-side key actually
-enforces. Firestore security rules apply to Firebase client sign-in, and this clock
-will not use that path. The grant is a custom role with `datastore.entities.get`,
-conditioned on the resource name of `current/entries`. The token request asks only
-for the Datastore scope. Phase 2 checks the boundary by reading a second document
-with the same key and expecting refusal.
+enforces. Firestore security rules apply to Firebase client sign-in, and this
+clock will not use that path. The grant is the custom role `tc002NightscoutReader`
+with only `datastore.entities.get`, conditioned on the database resource name
+`projects/PROJECT/databases/(default)`. Google does not provide a resource name
+for one document, so the key can GET another document in that database if one is
+added later. The token request asks only for the Datastore scope. Phase 2 checks
+this by listing collections (denied) and reading a second path (allowed, empty).
 
 ## Phases
 
@@ -123,20 +128,21 @@ later phases read.
 
 ### Phase 2 — Read-only identity and a Mac-side read
 
-Create a service account in the existing xdrip2gcp project, grant it the single-
-document read, and download the JSON key into the gitignored path. From the Mac,
-exchange that key for an access token and GET the Firestore REST document:
+Create a service account in the existing xdrip2gcp project, grant it a get-only
+role on that Firestore database, and download the JSON key into the gitignored
+path. From the Mac, exchange that key for an access token and GET:
 
 `https://firestore.googleapis.com/v1/projects/{project}/databases/{database}/documents/current/entries`
 
-Decode `sgv` and print a line in the MVP form, for example `141 mg/dl`. Then repeat
-the GET against another path and confirm the key cannot read it.
+Decode `sgv` and print a line in the MVP form, for example `141 mg/dl`. How to
+repeat the setup is in `README.md`.
 
 This phase is the whole data path without the clock. The device work in phase 5
 repeats a request we have already seen succeed.
 
-Done when the Mac prints the live value from `secrets.toml`, and a read of any other
-document with that key fails.
+Done when the Mac prints the live value from `secrets.toml`, listing collections
+with that key is denied, and the README records that a second document path is
+not rejected by IAM.
 
 ### Phase 3 — Toolchain on the Mac
 
@@ -211,3 +217,9 @@ Recorded so a detour does not drop them. None of these start before phase 6.
 * 2026-10-22 — Phase 1 done. `secrets.example.toml` is the committed template.
   `secrets.toml` and `secrets/tc002-reader.json` are gitignored, as is `*.img`.
   The local `secrets.toml` is still the empty template; phase 2 fills it in.
+* 2026-10-22 — Phase 2 done. Service account
+  `tc002-nightscout-reader@xdrip2gcp.iam.gserviceaccount.com`, role
+  `tc002NightscoutReader` (`datastore.entities.get` only), condition on database
+  `(default)`. `read_current.py` printed the live `sgv`. Listing collections
+  returned 403. GET `current/not-entries` returned 404, which is the document
+  limit IAM cannot express. Replication steps are in `README.md`.
