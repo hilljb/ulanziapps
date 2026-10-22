@@ -1,3 +1,5 @@
 # Ulanzi TC002 Apps
 
 Displaying GCP Firestore data on a TC002. Maybe I'll do more later, but see the `firestore_nightscout/` directory for displaying [Nightscout](https://nightscout.github.io/) data I collect from [xDrip](https://navid200.github.io/xDrip/) and place into GCP via my own [xDrip2GCP](https://github.com/hilljb/xdrip2gcp). This is a hack in progress. I'm keeping the entire xDrip data/display/share project within the free tier of GCP, including this.
+
+What works today is a computer reading that live value. Recreate it by following [`firestore_nightscout/README.md`](firestore_nightscout/README.md) from the top. The clock is not built yet. [`firestore_nightscout/plan.md`](firestore_nightscout/plan.md) is the phase log for that work, not a second set of setup steps.

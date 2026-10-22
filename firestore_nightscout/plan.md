@@ -4,6 +4,10 @@ Live blood glucose from the xdrip2gcp Firestore document, drawn on a Ulanzi TC00
 The clock pulls the document itself. This file is the running plan: update the status
 of a phase when we start it, finish it, or set it aside.
 
+To recreate the working reader, follow [README.md](README.md) in this directory
+from the top. This file is the phase log, not the setup procedure. Phases 3–6
+are not done, so the clock cannot be recreated from these notes yet.
+
 ## Purpose
 
 xDrip uploads a reading about every five minutes. xdrip2gcp writes that reading to one
@@ -189,9 +193,9 @@ changes after xdrip2gcp overwrites the document, without anyone pushing to the c
 
 Build the persistent `update.img`, copy it to a FAT32 microSD card, and boot the
 clock with the card inserted. Power-cycle once and confirm the reading still
-updates. Write the setup notes in `firestore_nightscout/README.md`: the template,
-the service account, the container, the debug install, the SD-card install, and the
-recovery button.
+updates. The computer-side reader notes are already in `README.md`. This phase
+adds the clock steps to that file: the container, the debug install, the
+SD-card install, and the recovery button.
 
 Done when a cold boot shows the live reading, and another person with their own
 xdrip2gcp project can follow the README and the example secrets file to the same
@@ -223,3 +227,7 @@ Recorded so a detour does not drop them. None of these start before phase 6.
   `(default)`. `read_current.py` printed the live `sgv`. Listing collections
   returned 403. GET `current/not-entries` returned 404, which is the document
   limit IAM cannot express. Replication steps are in `README.md`.
+* 2026-10-22 — Recreation path is `firestore_nightscout/README.md`, linked from
+  the repo README. `plan.md` stays the phase log. The guide covers phases 0–2
+  only: a fresh checkout can print the live reading, and it says the clock is
+  not part of that procedure.
