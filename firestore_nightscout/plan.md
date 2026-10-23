@@ -4,9 +4,10 @@ Live blood glucose from the xdrip2gcp Firestore document, drawn on a Ulanzi TC00
 The clock pulls the document itself. This file is the running plan: update the status
 of a phase when we start it, finish it, or set it aside.
 
-To recreate the working reader, follow [README.md](README.md) in this directory
-from the top. This file is the phase log, not the setup procedure. Phases 3–6
-are not done, so the clock cannot be recreated from these notes yet.
+To recreate the working reader, and to compile the official demo, follow
+[README.md](README.md) in this directory from the top. This file is the phase
+log, not the setup procedure. The demo compiles. The clock is not on the LAN
+yet, so phases 4–6 cannot be recreated from these notes.
 
 ## Purpose
 
@@ -37,7 +38,7 @@ at power-on restores the stock firmware.
 | 0 | This plan | done |
 | 1 | Secrets layout | done |
 | 2 | Read-only identity and a Mac-side read | done |
-| 3 | Toolchain on the Mac | not started |
+| 3 | Toolchain on the Mac | in progress (demo compiles; clock not seen) |
 | 4 | Clock shows a fixed string | not started |
 | 5 | Clock pulls the live reading | not started |
 | 6 | Keep it across reboot, and write the setup notes | not started |
@@ -151,17 +152,25 @@ not rejected by IAM.
 ### Phase 3 — Toolchain on the Mac
 
 FlyThings, the official IDE, runs on Windows. The Z21 GCC toolchain is published as
-a Linux archive (`ssd.tar.gz`). Stand up a Linux x86_64 container or VM on this Mac,
-install that toolchain, and import the official `Z21_TC002_Demo` enough to produce a
-build. Install Android `platform-tools` on macOS so `adb connect <clock-ip>` works
-from the host.
+a Linux archive (`ssd.tar.gz`). This Mac is Apple silicon. The compiler is an
+x86-64 Linux binary, so `toolchain/build.sh` builds Ubuntu 24.04 as
+`linux/amd64` and Docker Desktop emulates it. The base image digest is pinned
+in `toolchain/Dockerfile` and recorded in `README.md`.
 
-Confirm during this phase whether this Mac is Apple silicon or Intel, and pin the
-container image to that host. Also confirm the clock and the Mac are on the same
-LAN, and record the clock's IP in `secrets.toml` if we want it kept out of the repo.
+The demo compiles. `toolchain/cache/demo/Z21_TC002_Demo/Release/zkgui.so` is an
+ELF 32-bit ARM shared object. The firmware supplies `main` and loads that
+library. How to repeat the compile, and the flags that were required
+(`-DUSE_ANDROID_LOG`, skip `src/logic` as its own units, do not link `aec` or
+`apc`, `-shared` plus `--allow-shlib-undefined`), is in `README.md`.
+
+`adb` is installed (`android-platform-tools`). It does not see the clock.
+`[clock] ip` in `secrets.toml` is empty, and a browse for `_adb._tcp` found
+nothing. USB-C is not a serial port. `toolchain/connect_adb.py` is ready for
+the address.
 
 Done when the demo project compiles in the Linux environment and `adb` on the Mac
-can see the clock.
+can see the clock. The compile is done. The clock has not been seen, so this
+phase stays in progress.
 
 ### Phase 4 — Clock shows a fixed string
 
@@ -231,3 +240,8 @@ Recorded so a detour does not drop them. None of these start before phase 6.
   the repo README. `plan.md` stays the phase log. The guide covers phases 0–2
   only: a fresh checkout can print the live reading, and it says the clock is
   not part of that procedure.
+* 2026-10-22 — Phase 3 compile works. Apple silicon, Ubuntu 24.04
+  `linux/amd64`, GCC 8.2.1. Output is `Release/zkgui.so` (ELF 32-bit ARM
+  shared object), not an executable. `adb` is installed and lists no device.
+  `[clock] ip` is empty. Phase stays in progress until the clock is visible.
+  The compile and the `adb` step are in `README.md`.

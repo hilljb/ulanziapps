@@ -1,12 +1,14 @@
 # Nightscout on the TC002
 
 A computer reads the live glucose value from Firestore and prints it as
-`128 mg/dl`. Follow this file from the top to recreate that. `plan.md` is the
-phase log, not the setup procedure.
+`128 mg/dl`. Follow the reader section below to recreate that. `plan.md` is
+the phase log, not the setup procedure.
 
-The clock does not do this yet. Phases 3–6 in `plan.md` are how the device
-gets built, and they are not done. Wi-Fi in `secrets.toml` stays empty until
-then.
+The official TC002 demo also compiles on this Mac. That procedure is
+[Compile the official demo](#compile-the-official-demo). It produces
+`zkgui.so`, a 32-bit ARM shared library. Nothing has been installed on the
+clock: its LAN address is still empty, and `adb` does not see a device.
+Wi-Fi in `secrets.toml` stays empty until a later phase.
 
 The value comes from [xdrip2gcp](https://github.com/hilljb/xdrip2gcp). xDrip
 uploads about every five minutes, and xdrip2gcp overwrites one Firestore
@@ -148,6 +150,99 @@ path returns `404` (allowed, but nothing is there) rather than `403`
 | `Missing secrets.toml` | The copy step was skipped, or the shell is not in `firestore_nightscout/`. |
 | `No module named secrets_config` | The script was started from another directory as a module. Run `python3 setup_reader.py` from `firestore_nightscout/`. |
 
+## Compile the official demo
+
+This is the Mac half of phase 3. It builds the stock
+[Ulanzi TC002 demo](https://github.com/UlanziTechnology/Ulanzi-U-Clock-TC002),
+not the glucose app. The glucose app starts in phase 4.
+
+This machine is Apple silicon. The FlyThings compiler,
+`arm-linux-gnueabihf-g++` GCC 8.2.1, is an x86-64 Linux binary, so the build
+runs in a `linux/amd64` container. Docker Desktop emulates that on Apple
+silicon. An Intel Mac uses the same image without emulation. The base image
+is pinned:
+
+```text
+ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+```
+
+The local tag is `tc002-build:ubuntu-24.04`. On 2026-10-22 that image's
+digest was `sha256:5a4f2ce4d053eaabec50b4845f16b5a3ab61ab68f4236a68cd66a2b8524f8423`.
+A later Docker build can change the image digest. The base digest above is
+the pin.
+
+You need Docker Desktop running, `python3`, `git`, and `file`. The first run
+downloads `ssd.tar.gz` (about 127 MB) from
+`https://download.flythings.cn/toolchain/ssd.tar.gz`, shallow-clones the demo,
+and downloads every package named in the demo's `.deps.lock` from
+`https://package.flythings.cn`. Those files land in `toolchain/cache/`, which
+is gitignored.
+
+From the repository root:
+
+```bash
+cd firestore_nightscout
+bash toolchain/build.sh
+```
+
+`build.sh` is safe to run again. Downloads and the image are reused.
+`compile.sh` recompiles a source file only when it is newer than its object
+file. After a flag change, delete
+`toolchain/cache/demo/Z21_TC002_Demo/Release` before rebuilding, or the old
+objects are kept.
+
+You are done with the compile when this prints an ARM shared object:
+
+```bash
+file toolchain/cache/demo/Z21_TC002_Demo/Release/zkgui.so
+```
+
+```text
+ELF 32-bit LSB shared object, ARM, EABI5 version 1 (GNU/Linux), dynamically linked
+```
+
+The demo `.cproject` builds a shared library named `zkgui.so`. The clock
+firmware supplies `main` and loads that library. These are the choices that
+make the link match the IDE, and the next change should keep them:
+
+* `src/logic/*.cc` is included by the matching activity `.cpp`. The IDE
+  excludes those files as their own translation units. Compiling them alone
+  fails because types such as `EASYUICONTEXT` are not in scope yet.
+* `-DUSE_ANDROID_LOG` is required. `base/log.h` includes EasyUI's
+  `utils/Log.h` when that header is present, and that header defines
+  `LOG_TAG` only when this macro is set. Without it, `mainActivity.cpp`
+  fails with `LOG_TAG was not declared`.
+* `aec` and `apc` are `linkLibrary: false` in `.deps.lock`. They need
+  glibc 2.29 (`log@GLIBC_2.29`, `exp@GLIBC_2.29`). This toolchain's glibc is
+  older, so those two libraries stay off the link line.
+* The link is `-shared` with
+  `-Wl,-z,now -Wl,-z,relro -Wl,-z,defs -Wl,--warn-common -Wl,-z,combreloc -Wl,--warn-once`
+  and `-Wl,--allow-shlib-undefined`. `libeasyui.so` references libpng,
+  FreeType, and libjpeg that are on the clock, not in the downloaded
+  packages. `--allow-shlib-undefined` lets those stay unresolved until the
+  device loads the library.
+
+## See the clock from this Mac
+
+This is the other half of phase 3, and it is not done. USB-C on the TC002 is
+mass storage and recovery, not an `adb` serial port. Debug access is Wi-Fi
+`adb` on port 5555, and only while the clock is on the same LAN.
+
+```bash
+brew install --cask android-platform-tools
+```
+
+Put the clock's address in `secrets.toml` (see `[clock]` in
+`secrets.example.toml`). Then, from `firestore_nightscout/`:
+
+```bash
+python3 toolchain/connect_adb.py
+```
+
+An empty `ip` exits before calling `adb`. Success is `adb devices -l` listing
+that address. On 2026-10-22 this Mac had `adb` installed and no device
+advertising, and `[clock] ip` was still empty.
+
 ## Layout
 
 | File | Committed | Purpose |
@@ -159,3 +254,9 @@ path returns `404` (allowed, but nothing is there) rather than `403`
 | `read_current.py` | yes | Prints the live reading |
 | `secrets_config.py` | yes | Loads `secrets.toml` |
 | `plan.md` | yes | Phase log. Not the setup procedure |
+| `toolchain/build.sh` | yes | Downloads, builds the image, compiles the demo |
+| `toolchain/prepare.py` | yes | Toolchain tarball, demo clone, FlyThings packages |
+| `toolchain/compile.sh` | yes | Cross-compile inside the container |
+| `toolchain/Dockerfile` | yes | `linux/amd64` Ubuntu 24.04 image |
+| `toolchain/connect_adb.py` | yes | `adb connect` using `[clock] ip` |
+| `toolchain/cache/` | no | Downloaded compiler, demo, packages, and `zkgui.so` |
