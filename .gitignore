@@ -76,3 +76,6 @@ tc002-reader.json
 
 # Firmware images. A lasting TC002 image can contain an injected key or Wi-Fi password.
 *.img
+
+# Downloaded Z21 toolchain, FlyThings packages, and the demo build.
+firestore_nightscout/toolchain/cache/
