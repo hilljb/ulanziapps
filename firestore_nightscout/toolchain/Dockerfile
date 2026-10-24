@@ -1,3 +1,4 @@
+# Retired. Image for the stock FlyThings demo compile, not for AWTRIX NG.
 # Apple silicon Mac. The FlyThings compiler is an x86-64 Linux binary
 # (arm-linux-gnueabihf-g++, GCC 8.2.1), so build.sh passes
 # --platform linux/amd64 and Docker Desktop runs this image under emulation.

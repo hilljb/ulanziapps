@@ -1,4 +1,6 @@
 #!/bin/bash
+# Retired stock-firmware compile. The clock runs AWTRIX NG.
+# build.sh refuses to start this unless TC002_STOCK_TOOLCHAIN=1.
 # Compile Z21_TC002_Demo with the FlyThings arm-linux-gnueabihf toolchain.
 # Runs inside the linux/amd64 container. prepare.py has already filled /work/cache.
 set -euo pipefail

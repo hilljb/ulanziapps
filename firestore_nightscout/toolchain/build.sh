@@ -1,7 +1,15 @@
 #!/bin/bash
-# Build Z21_TC002_Demo on this Mac.
-# Host is Apple silicon. The compiler runs in linux/amd64 Ubuntu 24.04.
+# Retired. This builds the stock Ulanzi FlyThings demo (zkgui.so).
+# The clock runs AWTRIX NG. Apps are Berry scripts over HTTP, not this compile.
+# See firestore_nightscout/README.md. The historical compile still runs when
+# TC002_STOCK_TOOLCHAIN=1 is set in the environment.
 set -euo pipefail
+
+if [[ "${TC002_STOCK_TOOLCHAIN:-}" != 1 ]]; then
+  echo "toolchain/build.sh is retired. The clock runs AWTRIX NG, and this script builds the stock FlyThings demo." >&2
+  echo "The current path is firestore_nightscout/README.md. Set TC002_STOCK_TOOLCHAIN=1 to run the old compile anyway." >&2
+  exit 2
+fi
 
 cd "$(dirname "$0")"
 python3 prepare.py

@@ -4,11 +4,13 @@ A computer reads the live glucose value from Firestore and prints it as
 `128 mg/dl`. Follow the reader section below to recreate that. `plan.md` is
 the phase log, not the setup procedure.
 
-The official TC002 demo also compiles on this Mac. That procedure is
-[Compile the official demo](#compile-the-official-demo). It produces
-`zkgui.so`, a 32-bit ARM shared library. Nothing has been installed on the
-clock: its LAN address is still empty, and `adb` does not see a device.
-Wi-Fi in `secrets.toml` stays empty until a later phase.
+The clock runs [AWTRIX NG](https://blueforcer.github.io/awtrix-ng/tc002/)
+1.2.2. Its web UI is `http://192.168.1.233/` on this network. The panel app
+`Glucose` asks this Mac for the line above. The clock does not call
+Firestore, and it does not hold the service-account key. Wi-Fi ADB and the
+FlyThings demo compile are retired; see
+[Stock firmware toolchain](#stock-firmware-toolchain). How to run the Mac
+server and reinstall the script is [The clock](#the-clock).
 
 The value comes from [xdrip2gcp](https://github.com/hilljb/xdrip2gcp). xDrip
 uploads about every five minutes, and xdrip2gcp overwrites one Firestore
@@ -150,98 +152,73 @@ path returns `404` (allowed, but nothing is there) rather than `403`
 | `Missing secrets.toml` | The copy step was skipped, or the shell is not in `firestore_nightscout/`. |
 | `No module named secrets_config` | The script was started from another directory as a module. Run `python3 setup_reader.py` from `firestore_nightscout/`. |
 
-## Compile the official demo
+## The clock
 
-This is the Mac half of phase 3. It builds the stock
-[Ulanzi TC002 demo](https://github.com/UlanziTechnology/Ulanzi-U-Clock-TC002),
-not the glucose app. The glucose app starts in phase 4.
-
-This machine is Apple silicon. The FlyThings compiler,
-`arm-linux-gnueabihf-g++` GCC 8.2.1, is an x86-64 Linux binary, so the build
-runs in a `linux/amd64` container. Docker Desktop emulates that on Apple
-silicon. An Intel Mac uses the same image without emulation. The base image
-is pinned:
-
-```text
-ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
-```
-
-The local tag is `tc002-build:ubuntu-24.04`. On 2026-10-22 that image's
-digest was `sha256:5a4f2ce4d053eaabec50b4845f16b5a3ab61ab68f4236a68cd66a2b8524f8423`.
-A later Docker build can change the image digest. The base digest above is
-the pin.
-
-You need Docker Desktop running, `python3`, `git`, and `file`. The first run
-downloads `ssd.tar.gz` (about 127 MB) from
-`https://download.flythings.cn/toolchain/ssd.tar.gz`, shallow-clones the demo,
-and downloads every package named in the demo's `.deps.lock` from
-`https://package.flythings.cn`. Those files land in `toolchain/cache/`, which
-is gitignored.
-
-From the repository root:
+The TC002 on this network runs AWTRIX NG. Confirm it with the address in
+`[clock] ip`:
 
 ```bash
-cd firestore_nightscout
-bash toolchain/build.sh
+curl -sS http://CLOCK_IP/api/v1/version
 ```
 
-`build.sh` is safe to run again. Downloads and the image are reused.
-`compile.sh` recompiles a source file only when it is newer than its object
-file. After a flag change, delete
-`toolchain/cache/demo/Z21_TC002_Demo/Release` before rebuilding, or the old
-objects are kept.
+A working clock answers `{"version":"1.2.2"}` or a later version. The web UI
+is `http://CLOCK_IP/`. The device also advertises `_awtrixng._tcp` and a
+hostname such as `awtrixng-77a638.local`. On this Mac the IP is the address
+that answers; the `.local` name did not.
 
-You are done with the compile when this prints an ARM shared object:
+Two panel apps ask this Mac for a line about once a minute. `clock/glucose.be`
+is installed as `Glucose` and draws the glucose number. `clock/trend.be` is
+installed as `Trend` and draws when that reading was taken, plus the change
+since the previous one (`delta` on `current/entries`). AWTRIX already rotates
+its apps, so Time, Glucose, and Trend take turns. From `firestore_nightscout/`:
 
 ```bash
-file toolchain/cache/demo/Z21_TC002_Demo/Release/zkgui.so
+python3 serve_reading.py
 ```
 
-```text
-ELF 32-bit LSB shared object, ARM, EABI5 version 1 (GNU/Linux), dynamically linked
-```
+That listens on port 8765. `GET /` returns the same text as
+`python3 read_current.py`. `GET /trend` returns `age|diff`, for example
+`4m ago|+7 mg/dl`: whole minutes since `reading_epoch_ms`, then `delta`
+rounded to the nearest whole number with the units label. Each of those
+requests reads Firestore once.
 
-The demo `.cproject` builds a shared library named `zkgui.so`. The clock
-firmware supplies `main` and loads that library. These are the choices that
-make the link match the IDE, and the next change should keep them:
+The clock must be able to open the Reading URL stored on each app. The
+defaults are `http://192.168.1.177:8765/` and
+`http://192.168.1.177:8765/trend`, this Mac's Wi-Fi address when the scripts
+were installed. If this Mac's address changes, set Reading URL in the clock's
+web UI: Apps, then the gear on Glucose and on Trend. The gear's Refresh value
+is the poll, in seconds.
 
-* `src/logic/*.cc` is included by the matching activity `.cpp`. The IDE
-  excludes those files as their own translation units. Compiling them alone
-  fails because types such as `EASYUICONTEXT` are not in scope yet.
-* `-DUSE_ANDROID_LOG` is required. `base/log.h` includes EasyUI's
-  `utils/Log.h` when that header is present, and that header defines
-  `LOG_TAG` only when this macro is set. Without it, `mainActivity.cpp`
-  fails with `LOG_TAG was not declared`.
-* `aec` and `apc` are `linkLibrary: false` in `.deps.lock`. They need
-  glibc 2.29 (`log@GLIBC_2.29`, `exp@GLIBC_2.29`). This toolchain's glibc is
-  older, so those two libraries stay off the link line.
-* The link is `-shared` with
-  `-Wl,-z,now -Wl,-z,relro -Wl,-z,defs -Wl,--warn-common -Wl,-z,combreloc -Wl,--warn-once`
-  and `-Wl,--allow-shlib-undefined`. `libeasyui.so` references libpng,
-  FreeType, and libjpeg that are on the clock, not in the downloaded
-  packages. `--allow-shlib-undefined` lets those stay unresolved until the
-  device loads the library.
-
-## See the clock from this Mac
-
-This is the other half of phase 3, and it is not done. USB-C on the TC002 is
-mass storage and recovery, not an `adb` serial port. Debug access is Wi-Fi
-`adb` on port 5555, and only while the clock is on the same LAN.
+Install or replace the scripts with the address in `[clock] ip`:
 
 ```bash
-brew install --cask android-platform-tools
+curl -X PUT http://CLOCK_IP/api/v1/apps/script/Glucose \
+  -H "Content-Type: text/plain" \
+  --data-binary @clock/glucose.be
+curl -X PUT http://CLOCK_IP/api/v1/apps/script/Trend \
+  -H "Content-Type: text/plain" \
+  --data-binary @clock/trend.be
 ```
 
-Put the clock's address in `secrets.toml` (see `[clock]` in
-`secrets.example.toml`). Then, from `firestore_nightscout/`:
+Success is `{"ok":true,"name":"Glucose","error":null}` and the same shape for
+`Trend`. An `error` object means the source is stored and the panel shows an
+error until a fixed copy is sent. The route is the
+[HTTP API script upload](https://blueforcer.github.io/awtrix-ng/tc002/reference/http/).
 
-```bash
-python3 toolchain/connect_adb.py
-```
+Holding the knob while the clock powers on starts the stock Ulanzi app for
+that boot. USB ADB is how AWTRIX recovers a broken release. Neither is the
+day-to-day install. `python3 toolchain/connect_adb.py` refuses, on purpose.
 
-An empty `ip` exits before calling `adb`. Success is `adb devices -l` listing
-that address. On 2026-10-22 this Mac had `adb` installed and no device
-advertising, and `[clock] ip` was still empty.
+## Stock firmware toolchain
+
+`toolchain/` compiled the stock Ulanzi demo to `zkgui.so` before this clock
+moved to AWTRIX NG. That binary was never installed. Do not use it for the
+glucose app.
+
+`bash toolchain/build.sh` and `python3 toolchain/prepare.py` exit immediately.
+They download and compile only when `TC002_STOCK_TOOLCHAIN=1` is set.
+`toolchain/cache/` stays gitignored. The flags that made that old link
+succeed remain in `toolchain/compile.sh`.
 
 ## Layout
 
@@ -252,11 +229,14 @@ advertising, and `[clock] ip` was still empty.
 | `secrets/tc002-reader.json` | no | Service-account key |
 | `setup_reader.py` | yes | Creates the account, role, binding, and key |
 | `read_current.py` | yes | Prints the live reading |
+| `serve_reading.py` | yes | Serves `/` and `/trend` on port 8765 for the clock |
+| `clock/glucose.be` | yes | Berry script that draws the glucose line |
+| `clock/trend.be` | yes | Berry script that draws the reading time and five-minute change |
 | `secrets_config.py` | yes | Loads `secrets.toml` |
 | `plan.md` | yes | Phase log. Not the setup procedure |
-| `toolchain/build.sh` | yes | Downloads, builds the image, compiles the demo |
-| `toolchain/prepare.py` | yes | Toolchain tarball, demo clone, FlyThings packages |
-| `toolchain/compile.sh` | yes | Cross-compile inside the container |
-| `toolchain/Dockerfile` | yes | `linux/amd64` Ubuntu 24.04 image |
-| `toolchain/connect_adb.py` | yes | `adb connect` using `[clock] ip` |
+| `toolchain/build.sh` | yes | Retired stock-firmware compile. Refuses unless `TC002_STOCK_TOOLCHAIN=1` |
+| `toolchain/prepare.py` | yes | Retired download for that compile. Same guard |
+| `toolchain/compile.sh` | yes | Retired cross-compile used by `build.sh` |
+| `toolchain/Dockerfile` | yes | Retired image for that compile |
+| `toolchain/connect_adb.py` | yes | Retired. Always refuses. AWTRIX NG has no Wi-Fi ADB |
 | `toolchain/cache/` | no | Downloaded compiler, demo, packages, and `zkgui.so` |

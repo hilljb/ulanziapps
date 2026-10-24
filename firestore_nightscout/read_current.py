@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Print the live glucose value from Firestore.
 
-This is the request the clock will repeat. It uses the service-account JSON
-key, not the gcloud user login:
+The Mac runs this request. The clock does not hold the key and does not call
+Firestore. It uses the service-account JSON key, not the gcloud user login:
 
 1. Sign a JWT (RS256) with the key. openssl does the signature.
 2. Exchange it at https://oauth2.googleapis.com/token for an access token.
@@ -85,6 +85,35 @@ def main(argv: list[str] | None = None) -> int:
     if not args.check_access:
         return 0
     return _check_access(account, project, database, document)
+
+
+def current_line() -> str:
+    """Read Firestore and return the display line, for example `128 mg/dl`."""
+    secrets = load_secrets()
+    units = require(secrets, "display", "units_label")
+    return _format_reading(_current_payload(secrets), units)
+
+
+def current_trend() -> str:
+    """Return `age|diff` for the second clock app.
+
+    `age` is how many whole minutes since `reading_epoch_ms`, such as `4m ago`.
+    `diff` is `delta` rounded to the nearest whole number, such as `+7 mg/dl`.
+    """
+    secrets = load_secrets()
+    units = require(secrets, "display", "units_label")
+    return _format_trend(_current_payload(secrets), units)
+
+
+def _current_payload(secrets: dict) -> dict:
+    project = require(secrets, "gcp", "project_id")
+    database = require(secrets, "gcp", "database_id")
+    document = require(secrets, "gcp", "document_path")
+    account = json.loads(key_path(secrets).read_text())
+    status, body = get_document(account, project, database, document)
+    if status != 200:
+        raise RuntimeError(f"GET {document} failed ({status})")
+    return body
 
 
 def get_document(account: dict, project: str, database: str, document: str) -> tuple[int, dict]:
@@ -177,6 +206,46 @@ def _format_reading(payload: dict, units: str) -> str:
     if isinstance(sgv, float) and sgv.is_integer():
         sgv = int(sgv)
     return f"{sgv} {units}"
+
+
+def _format_trend(payload: dict, units: str, now_ms: int | None = None) -> str:
+    fields = payload.get("fields") or {}
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    age = _format_age(_decode(fields.get("reading_epoch_ms")), now_ms)
+    diff = _format_delta(_decode(fields.get("delta")), units)
+    return f"{age}|{diff}"
+
+
+def _format_age(epoch_ms: object, now_ms: int) -> str:
+    """Whole minutes since the reading, floored. A future stamp stays at zero."""
+    if isinstance(epoch_ms, bool) or not isinstance(epoch_ms, (int, float)):
+        return "?"
+    elapsed = now_ms - int(epoch_ms)
+    if elapsed < 0:
+        elapsed = 0
+    return f"{elapsed // 60000}m ago"
+
+
+def _format_delta(value: object, units: str) -> str:
+    """Nearest whole number, half away from zero, then the units label."""
+    if isinstance(value, str):
+        try:
+            value = float(value)
+        except ValueError:
+            return "?"
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "?"
+    number = float(value)
+    if number >= 0:
+        rounded = int(number + 0.5)
+    else:
+        rounded = int(number - 0.5)
+    if rounded > 0:
+        body = f"+{rounded}"
+    else:
+        body = str(rounded)
+    return f"{body} {units}"
 
 
 def _decode(value):

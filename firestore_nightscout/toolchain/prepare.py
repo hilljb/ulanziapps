@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Download the pieces the TC002 demo build needs.
+"""Download the pieces the retired stock-firmware demo build needs.
+
+AWTRIX NG is the firmware on the clock. This download is not part of that
+setup. build.sh refuses to run unless TC002_STOCK_TOOLCHAIN=1.
 
 The compiler archive is https://download.flythings.cn/toolchain/ssd.tar.gz
 (arm-linux-gnueabihf GCC 8.2.1, an x86-64 Linux program). The demo's libraries
@@ -10,6 +13,7 @@ https://package.flythings.cn. Nothing here is committed. build.sh compiles.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tarfile
@@ -30,6 +34,12 @@ PACKAGE_API = "https://package.flythings.cn/api/platforms/z21/packages"
 
 
 def main() -> None:
+    if os.environ.get("TC002_STOCK_TOOLCHAIN") != "1":
+        raise SystemExit(
+            "toolchain/prepare.py is retired. The clock runs AWTRIX NG. "
+            "See firestore_nightscout/README.md. Set TC002_STOCK_TOOLCHAIN=1 "
+            "to download the stock FlyThings toolchain anyway."
+        )
     CACHE.mkdir(parents=True, exist_ok=True)
     ensure_toolchain()
     ensure_demo()
