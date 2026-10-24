@@ -2,7 +2,7 @@
 # @config  source text "Reading URL" default="http://192.168.1.177:8765/trend"
 # @config  every  number "Refresh" default=60 min=15 max=300 unit=s
 
-# The clock asks the Mac for "age|diff", such as "4m ago|+7 mg/dl".
+# The clock asks the Mac for "age|diff", such as "4 min ago|+7 mg/dl".
 # The top line is how many minutes have passed since the reading.
 # The bottom line is the change since the previous reading, rounded.
 # The Mac holds the Firestore key. This file does not.
@@ -58,15 +58,17 @@ class Trend
       text((width() - text_ink_width(self.when_label)) / 2, 10, self.when_label, 0xFFFFFF)
       return
     end
-    # Two large lines. y is the baseline. "g" descends one row, so the
-    # lower line stops on the last row. The slash is drawn one row lower
-    # so its top clears the descender in "ago".
-    text((width() - text_ink_width(self.when_label)) / 2, 6, self.when_label, 0xFFFFFF)
+    # Age is left, the change is right, each inset by 4 pixels.
+    # y is the baseline. "g" descends one row, so the lower line stops
+    # on the last row. The slash is one row lower so it clears that descender.
+    var pad = 4
+    text(pad, 6, self.when_label, 0xFFFFFF)
     if !self.has_slash
-      text((width() - text_ink_width(self.diff_full)) / 2, 14, self.diff_full, 0xFFFFFF)
+      var plain_x = width() - pad - text_ink_width(self.diff_full)
+      text(plain_x, 14, self.diff_full, 0xFFFFFF)
       return
     end
-    var x0 = (width() - text_ink_width(self.diff_full)) / 2
+    var x0 = width() - pad - text_ink_width(self.diff_full)
     text(x0, 14, self.diff_left, 0xFFFFFF)
     var slash_x = x0 + text_ink_width(self.diff_through_slash) - text_ink_width("/")
     text(slash_x, 15, "/", 0xFFFFFF)

@@ -97,7 +97,7 @@ def current_line() -> str:
 def current_trend() -> str:
     """Return `age|diff` for the second clock app.
 
-    `age` is how many whole minutes since `reading_epoch_ms`, such as `4m ago`.
+    `age` is how many whole minutes since `reading_epoch_ms`, such as `4 min ago`.
     `diff` is `delta` rounded to the nearest whole number, such as `+7 mg/dl`.
     """
     secrets = load_secrets()
@@ -224,7 +224,7 @@ def _format_age(epoch_ms: object, now_ms: int) -> str:
     elapsed = now_ms - int(epoch_ms)
     if elapsed < 0:
         elapsed = 0
-    return f"{elapsed // 60000}m ago"
+    return f"{elapsed // 60000} min ago"
 
 
 def _format_delta(value: object, units: str) -> str:

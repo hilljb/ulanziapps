@@ -178,7 +178,7 @@ python3 serve_reading.py
 
 That listens on port 8765. `GET /` returns the same text as
 `python3 read_current.py`. `GET /trend` returns `age|diff`, for example
-`4m ago|+7 mg/dl`: whole minutes since `reading_epoch_ms`, then `delta`
+`4 min ago|+7 mg/dl`: whole minutes since `reading_epoch_ms`, then `delta`
 rounded to the nearest whole number with the units label. Each of those
 requests reads Firestore once.
 

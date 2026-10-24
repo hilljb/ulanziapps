@@ -2,7 +2,7 @@
 """Serve glucose lines on the LAN for the AWTRIX scripts.
 
 GET / and GET /reading return the same text as read_current.py, for example
-`128 mg/dl`. GET /trend returns `age|diff`, for example `4m ago|+7 mg/dl`.
+`128 mg/dl`. GET /trend returns `age|diff`, for example `4 min ago|+7 mg/dl`.
 The service-account key stays in secrets/ on this machine. The clock polls
 this process; it does not call Firestore. Each of those GETs reads Firestore
 once.

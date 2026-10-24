@@ -280,4 +280,4 @@ Recorded so a detour does not drop them. None of these start before phase 7.
 * 2026-10-24 — `Trend` (`clock/trend.be`) joins the rotation after Time and
   Glucose. `GET /trend` returns whole minutes since `reading_epoch_ms` and
   `delta` rounded to the nearest whole number with the units label, drawn as
-  two lines such as `4m ago` and `+7 mg/dl`. `direction` is still unused.
+  two lines such as `4 min ago` and `+7 mg/dl`. `direction` is still unused.
