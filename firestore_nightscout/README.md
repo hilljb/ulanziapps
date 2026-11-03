@@ -1,16 +1,16 @@
 # Nightscout on the TC002
 
-A computer reads the live glucose value from Firestore and prints it as
-`128 mg/dl`. Follow the reader section below to recreate that. `plan.md` is
-the phase log, not the setup procedure.
+A Mac reads the live glucose value from Firestore and serves it on the LAN.
+The Ulanzi clock runs [AWTRIX NG](https://blueforcer.github.io/awtrix-ng/tc002/)
+and pulls that text over HTTP. Follow the reader section below to recreate
+the Firestore read, then [The clock](#the-clock) to serve it and to add a
+clock. `plan.md` is the phase log, not the setup procedure.
 
-The clock runs [AWTRIX NG](https://blueforcer.github.io/awtrix-ng/tc002/)
-1.2.2. Its web UI is `http://192.168.1.233/` on this network. The panel app
-`Glucose` asks this Mac for the line above. The clock does not call
-Firestore, and it does not hold the service-account key. Wi-Fi ADB and the
-FlyThings demo compile are retired; see
-[Stock firmware toolchain](#stock-firmware-toolchain). How to run the Mac
-server and reinstall the script is [The clock](#the-clock).
+Day to day you open the clock in a browser. Ulanzi Studio does not connect
+to this firmware. There is no Bluetooth step, and USB is only for the
+one-time AWTRIX install. The clock does not call Firestore, and it does not
+hold the service-account key. Wi-Fi ADB and the FlyThings demo compile are
+retired; see [Stock firmware toolchain](#stock-firmware-toolchain).
 
 The value comes from [xdrip2gcp](https://github.com/hilljb/xdrip2gcp). xDrip
 uploads about every five minutes, and xdrip2gcp overwrites one Firestore
@@ -154,42 +154,108 @@ path returns `404` (allowed, but nothing is there) rather than `403`
 
 ## The clock
 
-The TC002 on this network runs AWTRIX NG. Confirm it with the address in
-`[clock] ip`:
+You reach a clock over Wi-Fi, in a browser. Ulanzi Studio talks only to the
+stock Ulanzi app, so it cannot see a clock that is running AWTRIX. Bluetooth
+is not part of this setup. A USB cable is the one-time firmware install, and
+the recovery path if a release will not boot. It is not how you open the
+clock afterward.
 
-```bash
-curl -sS http://CLOCK_IP/api/v1/version
-```
+On this network the working clock is `192.168.1.233`, hostname
+`awtrixng-77a638`. Its web UI is `http://192.168.1.233/`. The Mac serves on
+`http://192.168.1.177:8765/`. Those two addresses are DHCP leases. Reserve
+both in the router, or you will be changing the clock's Reading URL whenever
+either device gets a new address.
 
-A working clock answers `{"version":"1.2.2"}` or a later version. The web UI
-is `http://CLOCK_IP/`. The device also advertises `_awtrixng._tcp` and a
-hostname such as `awtrixng-77a638.local`. On this Mac the IP is the address
-that answers; the `.local` name did not.
+### Keep the Mac serving
 
-Two panel apps ask this Mac for a line about once a minute. `clock/glucose.be`
-is installed as `Glucose` and draws the glucose number. `clock/trend.be` is
-installed as `Trend` and draws when that reading was taken, plus the change
-since the previous one (`delta` on `current/entries`). AWTRIX already rotates
-its apps, so Time, Glucose, and Trend take turns. From `firestore_nightscout/`:
+From `firestore_nightscout/`, leave this process running:
 
 ```bash
 python3 serve_reading.py
 ```
 
-That listens on port 8765. `GET /` returns the same text as
-`python3 read_current.py`. `GET /trend` returns `age|diff`, for example
-`4 min ago|+7 mg/dl`: whole minutes since `reading_epoch_ms`, then `delta`
-rounded to the nearest whole number with the units label. Each of those
-requests reads Firestore once.
+It listens on every interface, port 8765.
 
-The clock must be able to open the Reading URL stored on each app. The
-defaults are `http://192.168.1.177:8765/` and
-`http://192.168.1.177:8765/trend`, this Mac's Wi-Fi address when the scripts
-were installed. If this Mac's address changes, set Reading URL in the clock's
-web UI: Apps, then the gear on Glucose and on Trend. The gear's Refresh value
-is the poll, in seconds.
+| Request | Body |
+| --- | --- |
+| `GET /` and `GET /reading` | The same line as `python3 read_current.py`, for example `128 mg/dl` |
+| `GET /trend` | `age\|diff`, for example `4 min ago\|+7 mg/dl` |
 
-Install or replace the scripts with the address in `[clock] ip`:
+`age` is whole minutes since `reading_epoch_ms`. `diff` is `delta` rounded
+to the nearest whole number, then `units_label`. Each of those requests
+reads Firestore once. Two apps polling once a minute are two reads a minute.
+Another clock multiplies that again. The free allowance is 50,000 reads a
+day.
+
+The screensaver does not stop the process. Sleep does. While the Mac is
+asleep or this process is not running, each clock keeps the last line it
+received.
+
+Check the server and the clock from the Mac. `CLOCK_IP` is that clock's
+address:
+
+```bash
+curl -sS http://127.0.0.1:8765/
+curl -sS http://127.0.0.1:8765/trend
+curl -sS http://CLOCK_IP/api/v1/version
+```
+
+A working clock answers `{"version":"1.2.2"}` or a later version. If the
+browser or `curl` cannot reach a clock that the router lists, allow Local
+Network access for the app you are using.
+
+### Find a clock
+
+The clock and the Mac have to be on the same Wi-Fi. The clock uses 2.4 GHz.
+A router that offers 2.4 and 5 GHz under one name is fine.
+
+1. Power the clock on and watch the display. After the start animation it
+   shows the firmware version and an address such as `192.168.1.42` for a
+   few seconds. Open `http://192.168.1.42/` in a browser.
+2. If you missed it, the Status app on the clock shows the address. The
+   router device list shows the same clock under a name like
+   `awtrixng-77a638` (the last six characters of its Wi-Fi MAC).
+3. `http://awtrixng-77a638.local` is the mDNS name. On this Mac that name
+   timed out, and the IP worked. Prefer the IP. Finding it is documented at
+   [Find your clock](https://blueforcer.github.io/awtrix-ng/tc002/getting-started/discovery/).
+
+`[clock] ip` in `secrets.toml` is a note of the clock you last wrote down.
+The server does not read it. A second clock does not need a second entry
+there, and it does not need its own service-account key.
+
+### A clock that is not on the network yet
+
+| The display shows | What to do |
+| --- | --- |
+| `AP MODE`, then a network name such as `awtrixng-a1b2c3` | The clock is broadcasting its own setup hotspot. It has no password. Join it from the phone or laptop, and open `http://192.168.4.1/` if the setup page does not appear. Enter the home Wi-Fi name and password, then save. The hotspot closes when the clock joins. Steps: [Connect to Wi-Fi](https://blueforcer.github.io/awtrix-ng/tc002/getting-started/first-boot/). |
+| The stock Ulanzi app, and Ulanzi Studio can see it | AWTRIX is not installed, or this boot was forced back to stock. Install AWTRIX once, over USB, with the [official installer](https://blueforcer.github.io/awtrix-ng/tc002/getting-started/tc002/). The installer can take the Wi-Fi name and password. After it restarts, use the browser. |
+
+Holding the knob down while the clock powers on starts the stock Ulanzi app
+for that boot only. Ulanzi Studio can see the clock during that boot. Let go
+of the knob and power it on normally to return to AWTRIX. USB ADB is how
+AWTRIX recovers a broken release, described in the
+[TC002 developer guide](https://blueforcer.github.io/awtrix-ng/tc002/developers/tc002/).
+`python3 toolchain/connect_adb.py` refuses, on purpose.
+
+### What the panel shows
+
+AWTRIX rotates its apps. On this clock the order is Time, then Glucose, then
+Trend. Each turn uses the clock's app time, 7 seconds unless that setting
+was changed.
+
+`clock/glucose.be` is the app `Glucose`. It draws the glucose number in a
+taller digit pattern than the `mg/dl` beside it.
+
+`clock/trend.be` is the app `Trend`. The top line is how many minutes have
+passed, such as `5 min ago`, inset 4 pixels from the left. The bottom line
+is the change, such as `+7 mg/dl`, inset 4 pixels from the right. The `/`
+in `mg/dl` is drawn one pixel lower than the rest of that line so it clears
+the `g` in `ago`.
+
+### Install the apps on a clock
+
+Start `serve_reading.py` first. `MAC_IP` is this Mac's LAN address, not
+`127.0.0.1`. From `firestore_nightscout/`:
 
 ```bash
 curl -X PUT http://CLOCK_IP/api/v1/apps/script/Glucose \
@@ -198,16 +264,43 @@ curl -X PUT http://CLOCK_IP/api/v1/apps/script/Glucose \
 curl -X PUT http://CLOCK_IP/api/v1/apps/script/Trend \
   -H "Content-Type: text/plain" \
   --data-binary @clock/trend.be
+curl -X PUT http://CLOCK_IP/api/v1/apps/order \
+  -H "Content-Type: application/json" \
+  -d '{"order":["Time","Glucose","Trend"],"disabled":["Status"]}'
 ```
 
-Success is `{"ok":true,"name":"Glucose","error":null}` and the same shape for
-`Trend`. An `error` object means the source is stored and the panel shows an
-error until a fixed copy is sent. The route is the
-[HTTP API script upload](https://blueforcer.github.io/awtrix-ng/tc002/reference/http/).
+Success for a script is `{"ok":true,"name":"Glucose","error":null}`, and the
+same shape for `Trend`. An `error` object means the source is stored and
+that app shows an error on its turn until a fixed copy is sent. The route is
+the [HTTP API script upload](https://blueforcer.github.io/awtrix-ng/tc002/reference/http/).
 
-Holding the knob while the clock powers on starts the stock Ulanzi app for
-that boot. USB ADB is how AWTRIX recovers a broken release. Neither is the
-day-to-day install. `python3 toolchain/connect_adb.py` refuses, on purpose.
+Then open `http://CLOCK_IP/`, go to Apps, and open the gear on each app.
+
+| App | Reading URL | What it asks for |
+| --- | --- | --- |
+| Glucose | `http://MAC_IP:8765/` | `128 mg/dl` |
+| Trend | `http://MAC_IP:8765/trend` | `4 min ago\|+7 mg/dl` |
+
+The files' defaults are `http://192.168.1.177:8765/` and
+`http://192.168.1.177:8765/trend`. Refresh, on the same gear, is how often
+that app asks, in seconds. Every clock uses those same two URLs. If the
+Mac's address changes, change Reading URL on Glucose and on Trend on every
+clock.
+
+AWTRIX stores the scripts, so a normal reboot brings them back. They show
+the last good line until the Mac answers again. A cold boot with the server
+already up has not been checked on this clock yet.
+
+### If the clock does not answer
+
+| What you see | What it means |
+| --- | --- |
+| Ulanzi Studio cannot connect | Expected while AWTRIX is running. Open `http://CLOCK_IP/` instead. |
+| The display says `AP MODE` | The clock is not on your Wi-Fi. Join its setup hotspot. |
+| `curl http://CLOCK_IP/api/v1/version` times out | The address changed, the Mac and the clock are not on the same network, or Local Network permission is off for the app you are using. Read the address off the display. |
+| `awtrixng-…….local` times out | Use the IP. That is what worked on this Mac. |
+| The panel keeps an old number | `serve_reading.py` is not running, the Mac is asleep, or Reading URL still has a previous Mac address. |
+| The panel shows `ERR` on a turn | That script failed. `GET http://CLOCK_IP/api/v1/apps` includes the message. Send the script file again. |
 
 ## Stock firmware toolchain
 
@@ -231,7 +324,7 @@ succeed remain in `toolchain/compile.sh`.
 | `read_current.py` | yes | Prints the live reading |
 | `serve_reading.py` | yes | Serves `/` and `/trend` on port 8765 for the clock |
 | `clock/glucose.be` | yes | Berry script that draws the glucose line |
-| `clock/trend.be` | yes | Berry script that draws the reading time and five-minute change |
+| `clock/trend.be` | yes | Berry script that draws minutes since the reading, and the change |
 | `secrets_config.py` | yes | Loads `secrets.toml` |
 | `plan.md` | yes | Phase log. Not the setup procedure |
 | `toolchain/build.sh` | yes | Retired stock-firmware compile. Refuses unless `TC002_STOCK_TOOLCHAIN=1` |

@@ -20,9 +20,9 @@ about for the first version are:
 | Field | Role |
 | --- | --- |
 | `sgv` | Glucose in mg/dL. This is the number on the panel. |
-| `reading_epoch_ms` | When the reading was taken. Used later to notice a stale value. |
-| `direction` | Trend such as `Flat` or `SingleUp`. Unused until after the MVP. |
-| `delta` | Change since the previous reading. Unused until after the MVP. |
+| `reading_epoch_ms` | When the reading was taken. `Trend` shows whole minutes since then. |
+| `direction` | Trend such as `Flat` or `SingleUp`. Not shown yet. |
+| `delta` | Change since the previous reading. `Trend` shows it rounded, with the units. |
 
 The MVP is a static line of text in the form `128 mg/dl`. Layout, color, trend arrows,
 and stale-data treatment wait until that line is true and updating on its own.
@@ -49,7 +49,7 @@ Scripting is on.
 | 4 | Clock reachable over HTTP | done |
 | 5 | Mac serves the reading on the LAN | done |
 | 6 | Berry script draws the live reading | in progress (script installed; not yet watched across a new `sgv`) |
-| 7 | Reading survives reboot, and the README covers the clock | not started |
+| 7 | Reading survives reboot, and the README covers the clock | docs written; cold boot not checked |
 
 The MVP is done when phase 7 is done. Anything under "After the MVP" is recorded so
 we can come back to it, and is out of scope until then.
@@ -242,8 +242,11 @@ Recorded so a detour does not drop them. None of these start before phase 7.
   fits, a dashboard does not, without paging.
 * Brightness over the day, and what the three buttons and the knob do.
 * A login on the clock's HTTP API before any secret is stored in a script.
-* Share one poll between Glucose and Trend, so the two apps do not each read
-  Firestore on their own minute.
+* Move `serve_reading.py` to an always-on machine on the LAN, such as a
+  Raspberry Pi. This version stays on the Mac.
+* On that host, poll Firestore about every 15 seconds, keep the document,
+  and answer every clock from the copy. Until then, each clock request is
+  one Firestore read.
 
 ## Log
 
@@ -281,3 +284,7 @@ Recorded so a detour does not drop them. None of these start before phase 7.
   Glucose. `GET /trend` returns whole minutes since `reading_epoch_ms` and
   `delta` rounded to the nearest whole number with the units label, drawn as
   two lines such as `4 min ago` and `+7 mg/dl`. `direction` is still unused.
+* 2026-11-02 — The README clock section is the setup procedure for another
+  clock: browser on the LAN, not Ulanzi Studio, Bluetooth, or USB. The Mac
+  still serves port 8765. A cold boot has not been checked. Moving the
+  server to a Raspberry Pi waits.
