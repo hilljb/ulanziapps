@@ -4,7 +4,8 @@ A Mac reads the live glucose value from Firestore and serves it on the LAN.
 The Ulanzi clock runs [AWTRIX NG](https://blueforcer.github.io/awtrix-ng/tc002/)
 and pulls that text over HTTP. Follow the reader section below to recreate
 the Firestore read, then [The clock](#the-clock) to serve it and to add a
-clock. `plan.md` is the phase log, not the setup procedure.
+clock. `plan.md` says this app is done aside from moving the server onto a
+Raspberry Pi. It is not the setup procedure.
 
 Day to day you open the clock in a browser. Ulanzi Studio does not connect
 to this firmware. There is no Bluetooth step, and USB is only for the
@@ -326,7 +327,7 @@ succeed remain in `toolchain/compile.sh`.
 | `clock/glucose.be` | yes | Berry script that draws the glucose line |
 | `clock/trend.be` | yes | Berry script that draws minutes since the reading, and the change |
 | `secrets_config.py` | yes | Loads `secrets.toml` |
-| `plan.md` | yes | Phase log. Not the setup procedure |
+| `plan.md` | yes | Current state. The Raspberry Pi move is later. Setup is this README |
 | `toolchain/build.sh` | yes | Retired stock-firmware compile. Refuses unless `TC002_STOCK_TOOLCHAIN=1` |
 | `toolchain/prepare.py` | yes | Retired download for that compile. Same guard |
 | `toolchain/compile.sh` | yes | Retired cross-compile used by `build.sh` |

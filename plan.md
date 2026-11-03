@@ -6,12 +6,11 @@ that does not change across a reboot. This file is the plan for that host
 and for the root of the repo. Update a phase when we start it, finish it,
 or set it aside.
 
-The glucose app in [`firestore_nightscout/`](firestore_nightscout/) is the
-working example. Its [README](firestore_nightscout/README.md) is how that
-app was built, including the Mac server it uses today. Its
-[plan](firestore_nightscout/plan.md) is that app's phase log. This file
-does not replace either. We come back to that app after the Pi is the
-address a clock can find.
+The glucose app in [`firestore_nightscout/`](firestore_nightscout/) is
+functional on this Mac. Its [README](firestore_nightscout/README.md) is the
+setup, including the server the clock uses today. Its
+[plan](firestore_nightscout/plan.md) says the remaining work for that app
+is this Pi move. This file does not replace that README.
 
 ## Purpose
 
@@ -58,8 +57,7 @@ Copy that key. Do not make a second account for the Pi.
 | 6 | The working clock uses the Pi | not started |
 | 7 | A new clock gets the Pi URL | not started |
 
-Phase 7 is the end of this plan. Glucose layout, `direction`, and a second
-app's Berry source wait until we return to `firestore_nightscout/`.
+Phase 7 is the end of this plan. The glucose app needs nothing else.
 
 ## Decisions
 
@@ -343,3 +341,5 @@ Recorded so they are not lost. None of these start before phase 7.
   those ignored files. The glucose plan log had the filled service-account
   email; that line now says `PROJECT_ID`. Commit `84ecee8` on `main` still
   has the old email.
+* 2026-11-03 — The glucose app is functional on this Mac. Its plan no longer
+  tracks phases. The remaining glucose work is this Pi move.

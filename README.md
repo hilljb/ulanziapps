@@ -13,6 +13,6 @@ writes it.
 
 What works today is still this Mac, for Nightscout glucose. Recreate that
 reader from [`firestore_nightscout/README.md`](firestore_nightscout/README.md).
-[`firestore_nightscout/plan.md`](firestore_nightscout/plan.md) is that app's
-phase log. A later app will be a sibling directory and another path on the
-same Pi, port 8765.
+[`firestore_nightscout/plan.md`](firestore_nightscout/plan.md) says that app
+is done aside from this Pi move. A later app will be a sibling directory and
+another path on the same Pi, port 8765.
