@@ -79,9 +79,9 @@ we can come back to it, and is out of scope until then.
   poll is about 1,440 reads a day, inside the Firestore free tier of 50,000 reads a
   day. The interval belongs in the secrets file so it can change without a hunt
   through the source. The clock's poll is what triggers the Mac's Firestore read.
-* Secrets stay on this machine. The repo carries a template with every key and an
-  empty or placeholder value, plus a gitignore rule that keeps the real file and the
-  service-account JSON out of git.
+* Secrets stay on this machine. The repo carries a template with every key, an
+  empty or placeholder value, and a comment that says where that value comes from.
+  A gitignore rule keeps the real file and the service-account JSON out of git.
 * Wi-Fi is configured on the clock by AWTRIX. `secrets.toml` does not inject an
   SSID or a passphrase into a firmware image.
 * How the text looks is settled after the number on the panel is the real reading.
@@ -90,17 +90,22 @@ we can come back to it, and is out of scope until then.
 
 Two files, same keys:
 
-* `secrets.example.toml` is committed. Every setting is present, commented, and safe
-  to publish: project id placeholder, database id, document path, service-account
-  email, a path where the JSON key will live, the clock's LAN address, and the
-  poll interval. Wi-Fi name and password remain in the file and are unused.
+* `secrets.example.toml` is committed. Every setting is present, safe to publish,
+  and commented with where the value comes from. `project_id` is the xdrip2gcp
+  GCP project (`gcloud config get-value project`). `database_id` and
+  `document_path` are that project's Firestore database and the `current/entries`
+  document. `service_account_email` and the JSON key are written by
+  `setup_reader.py`. The Wi-Fi name and password are the ones typed into the
+  clock's AP-mode page, and this repo does not read them. `[clock] ip` is the
+  address on the clock's panel. The poll interval and the units label are
+  display settings, not credentials.
 * `secrets.toml` is gitignored. It is the copy with real values. `read_current.py`
   reads the GCP section. The clock's address is `[clock] ip`.
 
 Also gitignored: the service-account JSON key, and any firmware image. Those
 rules live in the root `.gitignore`.
 
-Expected keys:
+Expected keys. The comments that name each source live in `secrets.example.toml`. This block only lists the keys:
 
 ```toml
 [gcp]
@@ -242,11 +247,12 @@ Recorded so a detour does not drop them. None of these start before phase 7.
   fits, a dashboard does not, without paging.
 * Brightness over the day, and what the three buttons and the knob do.
 * A login on the clock's HTTP API before any secret is stored in a script.
-* Move `serve_reading.py` to an always-on machine on the LAN, such as a
-  Raspberry Pi. This version stays on the Mac.
+* Move `serve_reading.py` off this Mac. That work is the root
+  [plan](../plan.md): a Raspberry Pi, a reserved address, and systemd.
+  Until phase 6 of that plan, this Mac is still the server the clock uses.
 * On that host, poll Firestore about every 15 seconds, keep the document,
   and answer every clock from the copy. Until then, each clock request is
-  one Firestore read.
+  one Firestore read. The root plan carries this item too.
 
 ## Log
 
@@ -256,11 +262,12 @@ Recorded so a detour does not drop them. None of these start before phase 7.
   `secrets.toml` and `secrets/tc002-reader.json` are gitignored, as is `*.img`.
   The local `secrets.toml` is still the empty template; phase 2 fills it in.
 * 2026-10-22 — Phase 2 done. Service account
-  `tc002-nightscout-reader@xdrip2gcp.iam.gserviceaccount.com`, role
-  `tc002NightscoutReader` (`datastore.entities.get` only), condition on database
-  `(default)`. `read_current.py` printed the live `sgv`. Listing collections
-  returned 403. GET `current/not-entries` returned 404, which is the document
-  limit IAM cannot express. Replication steps are in `README.md`.
+  `tc002-nightscout-reader@PROJECT_ID.iam.gserviceaccount.com`, the address
+  `setup_reader.py` wrote into `secrets.toml`. Role `tc002NightscoutReader`
+  (`datastore.entities.get` only), condition on database `(default)`.
+  `read_current.py` printed the live `sgv`. Listing collections returned 403.
+  GET `current/not-entries` returned 404, which is the document limit IAM
+  cannot express. Replication steps are in `README.md`.
 * 2026-10-22 — Recreation path is `firestore_nightscout/README.md`, linked from
   the repo README. `plan.md` stays the phase log. The guide covers phases 0–2
   only: a fresh checkout can print the live reading, and it says the clock is
@@ -288,3 +295,14 @@ Recorded so a detour does not drop them. None of these start before phase 7.
   clock: browser on the LAN, not Ulanzi Studio, Bluetooth, or USB. The Mac
   still serves port 8765. A cold boot has not been checked. Moving the
   server to a Raspberry Pi waits.
+* 2026-11-03 — The Pi move is the root [plan](../plan.md). This app stays
+  the working reader. The clock keeps using this Mac until that plan's
+  phase 6.
+* 2026-11-03 — `secrets.example.toml` comments now name the source of each
+  value: gcloud project, Firestore database and document, `setup_reader.py`
+  for the account email and JSON key, the clock panel for `[clock] ip`, and
+  the clock's AP-mode page for the unused Wi-Fi fields.
+* 2026-11-03 — The phase 2 log line had the filled service-account email,
+  which includes the GCP project id. This file now says `PROJECT_ID`. The
+  filled email and project id stay in `secrets.toml` and in the JSON key.
+  Commit `84ecee8` on `main` still has the old line.

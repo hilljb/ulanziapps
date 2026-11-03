@@ -1,5 +1,18 @@
-# Ulanzi TC002 Apps
+# Ulanzi TC002 apps
 
-Displaying GCP Firestore data on a TC002. Maybe I'll do more later, but see the `firestore_nightscout/` directory for displaying [Nightscout](https://nightscout.github.io/) data I collect from [xDrip](https://navid200.github.io/xDrip/) and place into GCP via my own [xDrip2GCP](https://github.com/hilljb/xdrip2gcp). This is a hack in progress. I'm keeping the entire xDrip data/display/share project within the free tier of GCP, including this.
+Berry apps for a TC002 running [AWTRIX NG](https://blueforcer.github.io/awtrix-ng/tc002/).
+You open a clock in a browser at `http://CLOCK_IP/`. Ulanzi Studio talks to
+the stock Ulanzi app, so it does not see a clock on this firmware.
 
-What works today is this Mac serving that live value over HTTP, and AWTRIX NG on the clock pulling it. Open the clock in a browser. Ulanzi Studio does not connect to this firmware. Recreate the reader and add a clock by following [`firestore_nightscout/README.md`](firestore_nightscout/README.md) from the top. [`firestore_nightscout/plan.md`](firestore_nightscout/plan.md) is the phase log, not a second set of setup steps. A later version can move the server onto a Raspberry Pi. This one stays on the Mac.
+The clocks pull text from one HTTP server on the LAN. That server is moving
+off this Mac onto a Raspberry Pi that stays at a reserved address, with the
+GCP key on the Pi and systemd bringing the server back after a reboot.
+[`plan.md`](plan.md) is that work. The root of this repo will become the
+guide for adding a clock. It is not that guide yet. Phase 1 of the plan
+writes it.
+
+What works today is still this Mac, for Nightscout glucose. Recreate that
+reader from [`firestore_nightscout/README.md`](firestore_nightscout/README.md).
+[`firestore_nightscout/plan.md`](firestore_nightscout/plan.md) is that app's
+phase log. A later app will be a sibling directory and another path on the
+same Pi, port 8765.

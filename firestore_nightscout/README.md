@@ -317,7 +317,7 @@ succeed remain in `toolchain/compile.sh`.
 
 | File | Committed | Purpose |
 | --- | --- | --- |
-| `secrets.example.toml` | yes | Every setting, with placeholders |
+| `secrets.example.toml` | yes | Every setting. Comments say where each value comes from |
 | `secrets.toml` | no | This machine's values |
 | `secrets/tc002-reader.json` | no | Service-account key |
 | `setup_reader.py` | yes | Creates the account, role, binding, and key |
